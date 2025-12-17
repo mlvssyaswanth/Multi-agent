@@ -350,6 +350,9 @@ class Orchestrator:
                     "github_push": "1. Initialize git: git init\n2. Create .gitignore file\n3. Add files: git add .\n4. Commit: git commit -m 'Initial commit'\n5. Create GitHub repo and push",
                     "hosting_platforms": "Recommended: Heroku, Railway, or Render for easy deployment"
                 }
+                self._pipeline_state["step_outputs"]["deployment_config"] = results["deployment_config"]
+                # Mark as completed even on failure since we provide a fallback
+                self._pipeline_state["completed_steps"].append("deployment")
             
             results["status"] = "completed"
             results["execution_time"] = time.time() - pipeline_start

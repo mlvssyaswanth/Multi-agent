@@ -155,14 +155,51 @@ Format your response clearly with sections marked as:
         
         log_api_call(logger, "DeploymentAgent", Config.MODEL, len(prompt))
         
-        response = self.agent.generate_reply(
-            messages=[{"role": "user", "content": prompt}]
-        )
+        import time
+        max_retries = 3
+        content = None
+        last_error = None
         
-        if response is None:
-            raise ValueError("Agent returned None response. Check API key and model configuration.")
+        for attempt in range(max_retries):
+            try:
+                response = self.agent.generate_reply(
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                
+                if response is None:
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"DeploymentAgent: None response on attempt {attempt + 1}/{max_retries}, retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    raise ValueError("Agent returned None response after retries. This may be due to API rate limiting or model unavailability.")
+                
+                content = response.get("content", "") if isinstance(response, dict) else str(response)
+                
+                if not content or not content.strip():
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt
+                        logger.warning(f"DeploymentAgent: Empty response on attempt {attempt + 1}/{max_retries}, retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                        continue
+                    raise ValueError("Agent returned empty content after retries.")
+                
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait_time = 2 ** attempt
+                    logger.warning(f"DeploymentAgent: Error on attempt {attempt + 1}/{max_retries}: {str(e)}, retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    continue
+                raise ValueError(f"Deployment configuration API call failed after {max_retries} attempts: {str(e)}. Check API key, model configuration, and network connection.")
         
-        content = response.get("content", "") if isinstance(response, dict) else str(response)
+        if not content:
+            error_msg = f"Failed to generate deployment configuration after {max_retries} attempts"
+            if last_error:
+                error_msg += f": {str(last_error)}"
+            raise ValueError(error_msg)
         
         return self._parse_deployment_output(content)
     
