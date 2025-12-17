@@ -81,13 +81,14 @@ Output only the Python code, properly formatted and ready for execution.""",
             max_consecutive_auto_reply=1,
         )
     
-    def generate_code(self, requirements: Dict[str, Any], feedback: str = None) -> str:
+    def generate_code(self, requirements: Dict[str, Any], feedback: str = None, previous_code: str = None) -> str:
         """
         Generate Python code from structured requirements.
         
         Args:
             requirements: Structured requirements dictionary
             feedback: Optional feedback from code review agent
+            previous_code: Optional previous code for follow-up prompts (to modify instead of generating from scratch)
             
         Returns:
             Generated Python code as string
@@ -101,6 +102,7 @@ Output only the Python code, properly formatted and ready for execution.""",
             {"has_feedback": bool(feedback), "requirements_count": len(requirements.get("functional_requirements", []))}
         )
         
+        # Build prompt based on whether we have feedback, previous code, or neither
         if feedback:
             prompt = f"""Convert the following refined requirements into clean, modular, functional Python code.
 
@@ -122,7 +124,28 @@ CRITICAL:
 - DO NOT review or critique the code - only implement it
 - Focus on code generation, not code review
 - Make the code work correctly based on requirements and feedback"""
-            logger.debug(f"📝 Generating code with feedback | Feedback length: {len(feedback)} chars")
+        elif previous_code:
+            prompt = f"""Modify the following existing code based on the updated requirements.
+
+PREVIOUS CODE:
+{previous_code}
+
+UPDATED REQUIREMENTS:
+{req_text}
+
+TASK:
+Modify the existing code to:
+1. Incorporate the updated requirements while maintaining existing functionality
+2. Make necessary changes, additions, or modifications as specified
+3. Keep the code structure and style consistent with the previous code
+4. Follow Python best practices (PEP 8, type hints, docstrings)
+5. Ensure the code is complete and executable
+
+CRITICAL: 
+- Modify the existing code rather than rewriting from scratch
+- Maintain consistency with the previous code structure
+- Only change what is necessary based on the updated requirements
+- Keep all working functionality that isn't being modified"""
         else:
             prompt = f"""Convert the following refined requirements into clean, modular, functional Python code.
 
@@ -150,7 +173,6 @@ CRITICAL:
 - DO NOT review or critique the code - only implement it
 - Focus on code generation, not code review
 - Generate working, functional code"""
-            logger.debug("📝 Generating initial code")
         
         log_api_call(logger, "CodingAgent", Config.MODEL, len(prompt))
         

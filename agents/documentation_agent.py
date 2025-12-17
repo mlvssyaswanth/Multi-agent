@@ -18,49 +18,73 @@ class DocumentationAgent:
             name="documentation_writer",
             system_message="""You are a technical documentation specialist with expertise in software documentation.
 
-Your task is to generate comprehensive, clear, and well-structured Markdown documentation for software projects.
+PRIMARY MISSION:
+Generate clear, structured Markdown documentation for Python code.
 
-Documentation MUST include these sections in order:
+MANDATORY SECTIONS (MUST BE INCLUDED):
 
-1. **Overview**: High-level description of what the code does, its purpose, and main features
+1. **CODE OVERVIEW** (REQUIRED):
+   - High-level description of what the code does
+   - Purpose and main features
+   - Key functionality summary
+   - What problems it solves
 
-2. **Agent Overview** (if this is a multi-agent system):
-   - List all implemented agents
-   - Describe each agent's responsibility
-   - Explain how agents interact
+2. **MODULE EXPLANATION** (REQUIRED):
+   - Detailed explanation of each module/class
+   - What each module does
+   - How modules relate to each other
+   - Module responsibilities and structure
+   - If multiple files: explain each file's purpose
 
-3. **Workflow and Architecture**:
-   - System architecture diagram (in text/ASCII or description)
-   - Data flow between components
-   - Execution workflow
-   - How components interact
+3. **FUNCTION DEFINITIONS** (REQUIRED):
+   - Complete documentation for all functions and classes
+   - Function/class names and descriptions
+   - What each function does
+   - How functions interact
 
-4. **Setup and Installation**:
+4. **PARAMETERS AND RETURN TYPES** (REQUIRED):
+   - For each function: list all parameters with their types
+   - For each function: specify return type
+   - Parameter descriptions and what they're used for
+   - Default values if applicable
+   - Exceptions that may be raised
+   - Format: `function_name(param1: type, param2: type) -> return_type`
+
+5. **USAGE EXAMPLES** (REQUIRED):
+   - Practical, runnable code examples
+   - Show how to use the code
+   - Include example inputs and expected outputs
+   - Multiple examples covering different use cases
+   - Copy-paste ready code snippets
+
+ADDITIONAL SECTIONS (if applicable):
+
+6. **Setup and Installation**:
    - Prerequisites
-   - Step-by-step installation instructions
-   - Environment setup
-   - Configuration requirements
+   - Step-by-step LOCAL installation instructions
+   - CRITICAL: DO NOT mention cloning repositories, git commands, or downloading from repositories
+   - Provide instructions for setting up the newly generated code locally
+   - Steps should include: creating the code file(s), installing dependencies, environment setup
+   - Assume the generated code is available locally and needs to be set up
 
-5. **How to Run the System**:
+7. **How to Run the System**:
    - Command-line instructions
    - Required parameters
    - Example usage
    - Expected output
 
-6. **Module Breakdown**: Detailed explanation of each module/class
+8. **Configuration** (if applicable):
+   - Configuration options
+   - Environment variables
+   - Settings and their descriptions
 
-7. **Function/Class Definitions**: Complete documentation with:
-   - Parameters and their types
-   - Return values and types
-   - Exceptions that may be raised
-   - Usage examples
-
-8. **Usage Examples**: Practical, runnable examples
-
-9. **Configuration**: Configuration options and environment variables
-
-Write in clear, professional language suitable for both technical and non-technical audiences.
-Use proper Markdown formatting with headers (##, ###), code blocks, lists, and tables where appropriate.""",
+DOCUMENTATION REQUIREMENTS:
+- Write in clear, professional language
+- Use proper Markdown formatting (headers ##, ###, code blocks, lists, tables)
+- Make it suitable for both technical and non-technical audiences
+- Ensure all five mandatory sections are present and comprehensive
+- Code examples must be runnable and accurate
+- Function signatures must include type information""",
             llm_config={
                 "config_list": [{
                     "model": Config.MODEL,
@@ -88,7 +112,7 @@ Use proper Markdown formatting with headers (##, ###), code blocks, lists, and t
         
         log_agent_activity(logger, "DocumentationAgent", "Generating documentation", {"code_length": len(code)})
         
-        prompt = f"""Generate comprehensive Markdown documentation for the following Python code.
+        prompt = f"""Generate clear, structured Markdown documentation for the following Python code.
 
 ORIGINAL REQUIREMENTS:
 {req_text}
@@ -98,19 +122,72 @@ GENERATED CODE:
 {code}
 ```
 
-IMPORTANT: The documentation MUST include these sections in this order:
+MANDATORY SECTIONS (MUST BE INCLUDED):
 
-1. **Overview** - What the code does and its purpose
-2. **Agent Overview** (if applicable) - List all agents and their responsibilities
-3. **Workflow and Architecture** - System architecture, data flow, execution workflow
-4. **Setup and Installation** - Prerequisites, installation steps, environment setup
-5. **How to Run the System** - Command-line instructions, parameters, example usage
-6. **Module Breakdown** - Detailed explanation of each module/class
-7. **Function/Class Definitions** - Complete API documentation with parameters, return values, exceptions
-8. **Usage Examples** - Practical, runnable code examples
-9. **Configuration** - Configuration options and settings
+1. **CODE OVERVIEW** (REQUIRED):
+   - High-level description of what the code does
+   - Purpose and main features
+   - Key functionality summary
+   - What problems it solves
 
-Make the documentation structured, comprehensive, and production-ready. Use proper Markdown formatting."""
+2. **MODULE EXPLANATION** (REQUIRED):
+   - Detailed explanation of each module/class
+   - What each module does
+   - How modules relate to each other
+   - Module responsibilities and structure
+   - If multiple files exist, explain each file's purpose
+
+3. **FUNCTION DEFINITIONS** (REQUIRED):
+   - Complete documentation for ALL functions and classes
+   - Function/class names and descriptions
+   - What each function does
+   - How functions interact
+
+4. **PARAMETERS AND RETURN TYPES** (REQUIRED):
+   - For EACH function: list all parameters with their types
+   - For EACH function: specify return type
+   - Parameter descriptions and what they're used for
+   - Default values if applicable
+   - Exceptions that may be raised
+   - Format example: `function_name(param1: type, param2: type) -> return_type`
+   - Include type information for all parameters and return values
+
+5. **USAGE EXAMPLES** (REQUIRED):
+   - Practical, runnable code examples
+   - Show how to use the code
+   - Include example inputs and expected outputs
+   - Multiple examples covering different use cases
+   - Copy-paste ready code snippets
+   - Examples should demonstrate actual usage
+
+ADDITIONAL SECTIONS (include if applicable):
+
+6. **Setup and Installation**:
+   - Prerequisites
+   - Step-by-step LOCAL installation instructions
+   - CRITICAL: DO NOT mention cloning repositories, git commands, or downloading from repositories
+   - Provide steps to set up the code that was just generated locally
+   - Include: creating necessary files, installing dependencies, environment setup
+   - Assume the code files are already available locally and need to be set up
+
+7. **How to Run the System**:
+   - Command-line instructions
+   - Required parameters
+   - Example usage
+   - Expected output
+
+8. **Configuration** (if applicable):
+   - Configuration options
+   - Environment variables
+   - Settings and their descriptions
+
+CRITICAL REQUIREMENTS:
+- ALL FIVE mandatory sections (Code Overview, Module Explanation, Function Definitions, Parameters and Return Types, Usage Examples) MUST be included
+- Function documentation must include complete parameter and return type information
+- Usage examples must be runnable and accurate
+- Use proper Markdown formatting (headers ##, ###, code blocks, lists)
+- Write in clear, professional language
+- Make documentation comprehensive and production-ready"""
         
         log_api_call(logger, "DocumentationAgent", Config.MODEL, len(prompt))
         

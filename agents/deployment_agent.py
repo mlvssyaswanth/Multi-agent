@@ -18,23 +18,57 @@ class DeploymentAgent:
             name="deployment_specialist",
             system_message="""You are a DevOps Engineer specializing in Python project deployment and configuration.
 
-Your responsibilities:
-1. Generate requirements.txt with all necessary dependencies
-2. Create clear project setup instructions
-3. Generate run scripts for different platforms
-4. Ensure reproducibility and simplicity
+PRIMARY MISSION:
+Generate deployment configuration focusing on simplicity and reproducibility.
+
+CORE RESPONSIBILITIES:
+1. **Generate requirements.txt**: List all Python dependencies with versions
+2. **Generate Project Setup Instructions**: Clear, step-by-step setup guide
+3. **GitHub Push Instructions**: How to push the project to GitHub
+4. **Hosting Platform Recommendations**: Suggest compatible hosting platforms
+5. **Focus on Simplicity and Reproducibility**: Make setup easy and repeatable
+
+MANDATORY OUTPUTS:
+
+1. **requirements.txt**:
+   - List all Python dependencies needed
+   - Include version numbers where critical
+   - Format: package>=version or package==version
+   - Be complete and accurate
+
+2. **Project Setup Instructions**:
+   - Step-by-step instructions for setting up the project locally
+   - Include: Python version, virtual environment setup, dependency installation
+   - Make it simple and easy to follow
+   - Ensure reproducibility (anyone can follow and get same result)
+
+3. **GitHub Push Instructions**:
+   - How to initialize a git repository
+   - How to create a .gitignore file (if needed)
+   - How to add files and commit
+   - How to create a GitHub repository
+   - How to push code to GitHub
+   - Step-by-step commands
+
+4. **Hosting Platform Recommendations**:
+   - Analyze the project type and requirements
+   - Suggest compatible hosting platforms (e.g., Heroku, Railway, Render, Vercel, AWS, Google Cloud, etc.)
+   - Explain why each platform is suitable
+   - Provide brief deployment steps for recommended platforms
+   - Consider: web apps, APIs, CLI tools, data processing, etc.
+
+FOCUS PRINCIPLES:
+- **Simplicity**: Instructions should be clear and easy to follow
+- **Reproducibility**: Anyone following instructions should get the same working setup
+- **Completeness**: Include all necessary steps, no assumptions
+- **Clarity**: Use simple language and clear formatting
 
 Output Format:
 Provide your output as structured text that can be parsed into:
 - requirements.txt content
 - Setup instructions
-- Run script content
-
-Focus on:
-- Complete dependency lists
-- Clear, step-by-step instructions
-- Cross-platform compatibility where possible
-- Simplicity and ease of use""",
+- GitHub push instructions
+- Hosting platform recommendations""",
             llm_config={
                 "config_list": [{
                     "model": Config.MODEL,
@@ -56,13 +90,13 @@ Focus on:
             requirements: Original requirements dictionary
             
         Returns:
-            Dictionary with 'requirements', 'setup_instructions', and 'run_script' keys
+            Dictionary with 'requirements', 'setup_instructions', 'github_push', and 'hosting_platforms' keys
         """
         req_text = self._format_requirements(requirements)
         
         log_agent_activity(logger, "DeploymentAgent", "Generating deployment config", {"code_length": len(code)})
         
-        prompt = f"""Generate deployment configuration for the following Python project:
+        prompt = f"""Generate deployment configuration for the following Python project. Focus on simplicity and reproducibility.
 
 ORIGINAL REQUIREMENTS:
 {req_text}
@@ -72,15 +106,52 @@ GENERATED CODE:
 {code}
 ```
 
-Generate:
-1. requirements.txt - List all Python dependencies needed (include versions where critical)
-2. Setup Instructions - Step-by-step instructions for setting up and running the project
-3. Run Script - A shell script (run.sh) that can be used to run the project
+MANDATORY OUTPUTS:
+
+1. **requirements.txt**:
+   - Analyze the code to identify all Python dependencies
+   - List all packages needed with appropriate versions
+   - Include standard library imports (no need to list)
+   - Format: package>=version or package==version
+   - Be complete and accurate
+
+2. **Project Setup Instructions**:
+   - Step-by-step instructions for setting up the project locally
+   - Include: Python version requirements, virtual environment setup, dependency installation
+   - Make it simple, clear, and easy to follow
+   - Ensure reproducibility (anyone can follow and get same result)
+   - Include any environment variables or configuration needed
+
+3. **GitHub Push Instructions**:
+   - How to initialize a git repository: `git init`
+   - How to create a .gitignore file (include common Python ignores: __pycache__, venv, .env, etc.)
+   - How to add files: `git add .`
+   - How to commit: `git commit -m "message"`
+   - How to create a GitHub repository (via web interface)
+   - How to add remote: `git remote add origin <repo-url>`
+   - How to push: `git push -u origin main` or `git push -u origin master`
+   - Provide complete step-by-step commands
+
+4. **Hosting Platform Recommendations**:
+   - Analyze the project type (web app, API, CLI tool, data processing, etc.)
+   - Suggest 2-3 compatible hosting platforms
+   - For each platform, explain:
+     * Why it's suitable for this project
+     * Key features that match the project needs
+     * Brief deployment steps
+   - Consider platforms like: Heroku, Railway, Render, Vercel, AWS, Google Cloud, Azure, DigitalOcean, etc.
+   - Base recommendations on project characteristics (needs database, static files, API endpoints, etc.)
+
+FOCUS ON:
+- **Simplicity**: Instructions should be clear and easy to follow
+- **Reproducibility**: Anyone following instructions should get the same working setup
+- **Completeness**: Include all necessary steps
 
 Format your response clearly with sections marked as:
 [REQUIREMENTS]
 [SETUP_INSTRUCTIONS]
-[RUN_SCRIPT]"""
+[GITHUB_PUSH]
+[HOSTING_PLATFORMS]"""
         
         log_api_call(logger, "DeploymentAgent", Config.MODEL, len(prompt))
         
@@ -107,25 +178,32 @@ Format your response clearly with sections marked as:
         """Parse the agent's output into structured deployment config."""
         requirements = ""
         setup_instructions = ""
-        run_script = ""
+        github_push = ""
+        hosting_platforms = ""
         
         if "[REQUIREMENTS]" in content:
             req_start = content.find("[REQUIREMENTS]") + len("[REQUIREMENTS]")
             req_end = content.find("[SETUP_INSTRUCTIONS]", req_start)
             if req_end == -1:
-                req_end = content.find("[RUN_SCRIPT]", req_start)
+                req_end = content.find("[GITHUB_PUSH]", req_start)
             if req_end > req_start:
                 requirements = content[req_start:req_end].strip()
         
         if "[SETUP_INSTRUCTIONS]" in content:
             setup_start = content.find("[SETUP_INSTRUCTIONS]") + len("[SETUP_INSTRUCTIONS]")
-            setup_end = content.find("[RUN_SCRIPT]", setup_start)
+            setup_end = content.find("[GITHUB_PUSH]", setup_start)
             if setup_end > setup_start:
                 setup_instructions = content[setup_start:setup_end].strip()
         
-        if "[RUN_SCRIPT]" in content:
-            script_start = content.find("[RUN_SCRIPT]") + len("[RUN_SCRIPT]")
-            run_script = content[script_start:].strip()
+        if "[GITHUB_PUSH]" in content:
+            github_start = content.find("[GITHUB_PUSH]") + len("[GITHUB_PUSH]")
+            github_end = content.find("[HOSTING_PLATFORMS]", github_start)
+            if github_end > github_start:
+                github_push = content[github_start:github_end].strip()
+        
+        if "[HOSTING_PLATFORMS]" in content:
+            hosting_start = content.find("[HOSTING_PLATFORMS]") + len("[HOSTING_PLATFORMS]")
+            hosting_platforms = content[hosting_start:].strip()
         
         if not requirements:
             requirements = self._generate_default_requirements()
@@ -133,13 +211,17 @@ Format your response clearly with sections marked as:
         if not setup_instructions:
             setup_instructions = self._generate_default_setup()
         
-        if not run_script:
-            run_script = self._generate_default_run_script()
+        if not github_push:
+            github_push = self._generate_default_github_push()
+        
+        if not hosting_platforms:
+            hosting_platforms = self._generate_default_hosting_platforms()
         
         return {
             "requirements": requirements,
             "setup_instructions": setup_instructions,
-            "run_script": run_script,
+            "github_push": github_push,
+            "hosting_platforms": hosting_platforms,
         }
     
     def _generate_default_requirements(self) -> str:
@@ -161,14 +243,50 @@ pytest>=7.4.0"""
 5. Create a .env file with your OPENAI_API_KEY
 6. Run the application: streamlit run app.py"""
     
-    def _generate_default_run_script(self) -> str:
-        """Generate default run script if parsing fails."""
-        return """#!/bin/bash
-# Activate virtual environment if it exists
-if [ -d "venv" ]; then
-    source venv/bin/activate
-fi
+    def _generate_default_github_push(self) -> str:
+        """Generate default GitHub push instructions if parsing fails."""
+        return """1. Initialize git repository:
+   git init
 
-# Run Streamlit app
-streamlit run app.py"""
+2. Create .gitignore file with:
+   __pycache__/
+   *.pyc
+   venv/
+   .env
+   *.log
+   .DS_Store
+
+3. Add files to git:
+   git add .
+
+4. Commit files:
+   git commit -m "Initial commit"
+
+5. Create a new repository on GitHub (via web interface)
+
+6. Add remote repository:
+   git remote add origin https://github.com/yourusername/your-repo-name.git
+
+7. Push to GitHub:
+   git branch -M main
+   git push -u origin main"""
+    
+    def _generate_default_hosting_platforms(self) -> str:
+        """Generate default hosting platform recommendations if parsing fails."""
+        return """Recommended Hosting Platforms:
+
+1. **Heroku**:
+   - Suitable for: Web applications, APIs
+   - Why: Easy deployment, free tier available, supports Python
+   - Deployment: Use Heroku CLI or connect GitHub repository
+
+2. **Railway**:
+   - Suitable for: Web apps, APIs, databases
+   - Why: Simple deployment, automatic builds from GitHub, good for Python projects
+   - Deployment: Connect GitHub repo, auto-deploys on push
+
+3. **Render**:
+   - Suitable for: Web services, static sites, APIs
+   - Why: Free tier, easy setup, supports Python
+   - Deployment: Connect GitHub, automatic deployments"""
 

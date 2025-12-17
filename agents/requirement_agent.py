@@ -70,24 +70,45 @@ Focus on clarity, completeness, and identifying all ambiguities.""",
             max_consecutive_auto_reply=1,
         )
     
-    def analyze(self, user_input: str) -> Dict[str, Any]:
+    def analyze(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Analyze user input and return structured requirements.
         Detects ambiguity and generates clarifying questions.
         
         Args:
             user_input: Natural language description of requirements
+            context: Optional context dictionary containing previous prompts and results for follow-up prompts
             
         Returns:
             Dictionary containing structured requirements with ambiguity detection
         """
-        log_agent_activity(logger, "RequirementAnalysisAgent", "Starting analysis", {"input_length": len(user_input)})
+        log_agent_activity(logger, "RequirementAnalysisAgent", "Starting analysis", {"input_length": len(user_input), "has_context": context is not None})
         
         # First, detect ambiguity
         ambiguity_info = self._detect_ambiguity(user_input)
         
+        # Build context information if available
+        context_section = ""
+        if context and context.get("is_active"):
+            previous_prompts = context.get("previous_prompts", [])
+            previous_results = context.get("previous_results")
+            
+            if previous_prompts or previous_results:
+                context_section = "\n\nPREVIOUS CONTEXT:\n"
+                if previous_prompts:
+                    context_section += f"Previous prompt(s): {previous_prompts[-1]}\n"
+                if previous_results:
+                    prev_reqs = previous_results.get("requirements", {})
+                    if prev_reqs:
+                        context_section += f"Previous functional requirements: {', '.join(prev_reqs.get('functional_requirements', [])[:3])}\n"
+                    prev_code = previous_results.get("code", "")
+                    if prev_code:
+                        code_summary = prev_code[:200] + "..." if len(prev_code) > 200 else prev_code
+                        context_section += f"Previous code summary: {code_summary}\n"
+                context_section += "\nThis is a follow-up request. Please update/modify the requirements based on the new input while maintaining consistency with the previous context.\n"
+        
         prompt = f"""Analyze the following user requirement and convert vague natural language into structured, actionable software requirements.
-
+{context_section}
 USER REQUIREMENT:
 {user_input}
 
@@ -122,12 +143,11 @@ IMPORTANT:
         )
         
         if response is None:
-            logger.error("❌ Agent returned None response")
+            logger.error("Agent returned None response")
             raise ValueError("Agent returned None response. Check API key and model configuration.")
         
         content = response.get("content", "") if isinstance(response, dict) else str(response)
         log_api_call(logger, "RequirementAnalysisAgent", Config.MODEL, len(prompt), len(content))
-        logger.debug(f"✅ Response received | Length: {len(content)} characters")
         
         try:
             json_start = content.find("{")
@@ -138,7 +158,7 @@ IMPORTANT:
             else:
                 requirements = self._parse_fallback(content)
         except json.JSONDecodeError as e:
-            logger.warning(f"⚠️  JSON parsing failed: {str(e)}. Using fallback parser.")
+            logger.warning(f"JSON parsing failed: {str(e)}, using fallback parser")
             requirements = self._parse_fallback(content)
         
         # Ensure all required fields are present
@@ -152,14 +172,8 @@ IMPORTANT:
             "ambiguity_notes": requirements.get("ambiguity_notes", ""),
         }
         
-        # Log ambiguity detection results
         if result["ambiguity_detected"]:
-            logger.info(f"⚠️  Ambiguity detected | Questions generated: {len(result['clarifying_questions'])}")
-            if result["clarifying_questions"]:
-                for i, question in enumerate(result["clarifying_questions"][:3], 1):
-                    logger.debug(f"   Q{i}: {question[:100]}...")
-        else:
-            logger.info("✅ No significant ambiguity detected")
+            logger.info(f"Ambiguity detected, {len(result['clarifying_questions'])} questions generated")
         
         return result
     
